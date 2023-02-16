@@ -1,0 +1,204 @@
+* {
+    margin: 0;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+:root {
+    --basket-ball-color: rgb(172,80,42);
+}
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000000;
+    position: relative;
+}
+
+[id="shoot-button"] {
+    position: absolute;
+    bottom: 8rem;
+    right: 20vw;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: url(assets/textures/basketball-outline_orange.png) center/contain;
+    box-shadow: 0px 0px 5px 3px rgba(256, 256, 256, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-shadow: 1px 1px 2px #55f;
+    font-size: 1.2rem;
+    font-weight: 1000;
+    color: yellow;
+    animation-name: hoverBall;
+    animation-duration: 01s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    transition: 0.5s;
+    cursor: pointer;
+    user-select: none;
+    &:active {
+        transform: scale(1.3);
+    }
+}
+.shoot-button {
+    &--waiting {
+        opacity: 0.5;
+        font-size: 1.1rem;
+        text-shadow: 1px 1px 1px #555;
+        color: #fff;
+    }
+    &--left {
+        left: 20vw;
+    }
+}
+@keyframes hoverBall {
+    0% {
+        box-shadow: 0px 0px 5px 3px rgba(256, 256, 256, 0.5);
+        transform: translateY(2px);
+    }
+
+    100% {
+        box-shadow: 0px 0px 5px 4px rgba(256, 256, 256, 0.5);
+    }
+}
+
+[id=button-area] {
+    position: absolute;
+    top: 2rem;
+    right: 20vw;
+    width: 3rem;
+    display: flex;
+    flex-direction: column;
+}
+.button-area--left {
+    left: 20vw;
+}
+#camera-button {
+    width: 3rem;
+    height: 3rem;
+    cursor: pointer;
+}
+#audio-button {
+    width: 3rem;
+    height: 3rem;
+    margin-top: 1rem;
+    cursor: pointer;
+}
+
+
+#camera {
+    width: 100%;
+    height: auto;
+}
+
+.audio {
+    width: 100%;
+    height: auto;
+    position: absolute;
+}
+.visible {
+    opacity: 1;
+    transition: 1s;
+}
+.hidden {
+    opacity: 0;
+}
+.removed {
+    display: none;
+}
+[type="range"] {
+    position: absolute;
+    right: 0;
+    bottom: 50vh;
+    transform: translateX(calc(-20vw + 4rem)) rotate(-90deg);
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, #555,#fff);
+    height: 10px;
+    width: 0;
+    border-radius: 6px;
+    transition: 2s;
+    &:focus, &:active {
+        outline: none;
+    }
+    &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+        position: relative;
+        width: 30px;
+        height: 30px;
+        display: block;
+        background: url(assets/textures/basketball-outline_orange.png) center/contain;
+        border-radius: 50%;
+        -webkit-border-radius: 50%;
+    }
+    &.visible {
+        width: 12rem;
+    }
+}
+.slider {
+    &--left {
+        left: 0;
+        transform: translateX(calc(20vw - 4rem)) rotate(-90deg);
+    }
+}
+.message-box {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+}
+.message {    
+    color: #fff;
+    text-shadow: 1px 1px 2px yellow, 2px 2px 2px #000;
+    font-size: 0;
+    opacity: 0;
+    text-align: center;
+    line-height: 1.3;
+    &--animation {
+        animation: message-pop 3s ease 1s;
+    }
+}
+@keyframes message-pop {
+    50% {
+        font-size: 10vw;
+        opacity: 1;
+    }
+    80% {
+        font-size: 10vw;
+        opacity: 1;
+    }
+    100% {
+        font-size: 0;
+        opacity: 0;
+        visibility: none;
+    }
+}
+@media screen and (max-width: 500px) {
+    [id="shoot-button"] {
+        right: calc(50vw - 2rem);
+        bottom: 4rem;
+    }
+    .shoot-button {
+        &--left {
+            left: calc(50vw - 2rem);
+        }
+    }
+    #button-area {
+        right: 8vw;
+    }
+    .button-area--left {
+        left: 8vw;
+    }
+    [type="range"] {
+        bottom: 15rem;
+        transform: translateX(calc(-8vw + 3rem)) rotate(-90deg);
+    }
+    .slider {
+        &--left {
+            left: 0;
+            transform: translateX(calc(8vw - 3rem)) rotate(-90deg);
+        }
+    }
+}

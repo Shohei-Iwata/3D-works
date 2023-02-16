@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-169194665-2"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag() { dataLayer.push(arguments); }
+		gtag('js', new Date());
+
+		gtag('config', 'UA-169194665-2');
+	</script>
+
+	<title>Basket Shooot!!</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0">
+	<link rel="icon" href="assets/textures/basketball-outline_orange.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="style.css">
+	<script type="text/javascript" src="../libs/three.js"></script>
+	<script type="text/javascript" src="../libs/physi.js"></script>
+
+</head>
+
+<body>
+	<div id="viewport"></div>
+	<div id="shoot-button">shooot!</div>
+	<div id="button-area">
+		<div id="camera-button">
+			<img id="camera" src="assets/textures/flip_camera.svg">
+		</div>
+		<div id="audio-button">
+			<img id="off" class="audio visible" src="assets/textures/volume_off.svg">
+			<img id="on" class="audio hidden" src="assets/textures/volume_on.svg">
+		</div>
+	</div>
+	<input id="slider" class="hidden removed" type="range" value="13" step="0.1" min="12" max="20">
+	<script type="text/javascript" src="script.js"></script>
+	<div class="message-box">
+		<p class="message">Thanks for</p>
+		<p class="message">Playing!</p>
+	</div>
+</body>
+
+</html>

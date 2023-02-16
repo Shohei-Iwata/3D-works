@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Moon</title>
+    <meta name="description" content="web上で簡単に3Dを表現できるライブラリ「Three.js」を使って宇宙空間に浮かぶ月を再現してみました。">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0">
+    <meta property="og:url" content="https://shohei-iwata-portfolio.work">
+    <meta property="og:site_name" content="Shohei Iwata Portfolio">
+    <meta property="og:title" content="webで3Dの月を描いてみた">
+    <meta property="og:description" content="web上で簡単に3Dを表現できるライブラリ「Three.js」を使って宇宙空間に浮かぶ月を再現してみました。">
+    <meta property="og:image" content="https://shohei-iwata-portfolio.work/img/thumbnail.jpg">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:creator" content="@dolphin_desiner">
+    
+    <script src="libs/three.js"></script>
+    <script src="libs/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: relative;
+        }
+        #loading {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            transition: all 1s ease-out 3s;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            background: #000022;
+        }
+        .fullmoon {
+            width: 100px;
+            height: 100px;
+            position: absolute;
+            top: 40vh;
+            left: calc(50vw - 50px);
+            border-radius: 50%;
+            background: -moz-linear-gradient(to bottom,#F5CF5A,#FBD23D 30%,#F5BB5A 50%,rgba(245,187,90,0.8));  
+            background: -webkit-linear-gradient(to bottom,#F5CF5A,#FBD23D 30%,#F5BB5A 50%,rgba(245,187,90,0.8)); 
+            background: linear-gradient(to bottom,#F5CF5A,#FBD23D 30%,#F5BB5A 50%,rgba(245,187,90,0.3)); 
+        }
+      .crescent {
+            width: 100px;
+            height: 100px;
+            position: absolute;
+            top: 40vh;
+            left: calc(50vw - 150px);
+            border-radius: 50%;
+            animation: move 6.0s infinite ease;
+            background: #000022;
+        }
+        .loaded {
+            opacity: 0;
+            visibility: hidden;
+        }
+      .loading {
+        position: absolute;
+        top: 55vh;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #bbb;
+        text-align: center;
+      }
+        /* ローディングアニメーション */
+        @keyframes move {
+            0% {
+                transform: translateX(0px);
+            } 100% {
+                transform: translateX(200px);
+            }
+        }
+      .tweet {
+        position: absolute;
+        right: 1rem;
+        bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        font-size: 0.7rem;
+        color: #BBB;
+        font-family: serif;
+      }
+      .tweet a {
+        margin-bottom: 1rem;
+      }
+    </style>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-169194665-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'UA-169194665-1');
+    </script>
+</head>
+<body>
+  <div id="loading">
+    <div class="fullmoon"></div>
+    <div class="crescent"></div>
+    <p class="loading">loading...</p>
+  </div>
+  <div class="tweet">
+<!--
+      <a href="https://twitter.com/share?url=https://shohei-iwata-portfolio.work&text=webで3Dの月を描いてみた&via=dolphin_desiner&related=dolphin_desiner" rel="nofollow" target="_blank">
+        <img src="img/Twitter_Icon_White.png" alt="tiwtter_share" width="40" height="40">
+      </a>
+-->
+      画像提供：NASA
+  </div>
+<script>
+
+    let renderer;
+    let scene;
+    let camera, cubeCamera;
+    let control;
+    let orbit;
+    let sphere;
+
+    function init() {
+        // create a scene
+        scene = new THREE.Scene();
+
+        // create a render
+        renderer = new THREE.WebGLRenderer();
+        renderer.setClearColor(new THREE.Color(0x000000));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      
+        // create a camera
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+        
+        // set the camera
+        camera.position.x = 0;
+        camera.position.y = 5;
+        camera.position.z = 33;
+        camera.lookAt(scene.position);
+      
+        // camera control
+        orbit = new THREE.OrbitControls(camera);
+        orbit.autoRotate = true;
+        
+        // set lights
+        let ambiLight = new THREE.AmbientLight(0x444444);
+        scene.add(ambiLight);
+
+        let light = new THREE.DirectionalLight();
+        light.position.set(350, 350, 150);
+        light.intensity = 0.6;
+        scene.add(light);
+
+        // create a CubeMap
+        let textureCube = createCubeMap();
+        textureCube.format = THREE.RGBFormat;
+
+        let shader = THREE.ShaderLib["cube"];
+        shader.uniforms["tCube"].value = textureCube;
+
+        let material = new THREE.ShaderMaterial({
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: shader.uniforms,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+
+        let skybox = new THREE.Mesh(new THREE.BoxGeometry(10000, 10000, 10000), material);
+        scene.add(skybox);
+
+      
+        // add the moon
+      let sphere = createMesh(new THREE.SphereGeometry(7, 50, 50), "moon_2k.jpg", "bamp_4_uint.jpg");
+        sphere.rotation.y = 0.5;
+        sphere.position.x = 0;
+        scene.add(sphere);
+        console.log(sphere.geometry.faceVertexUvs);      
+
+        function createMesh(geom, imageFile, bumpFile) {
+            let textureLoader = new THREE.TextureLoader();
+            let texture = textureLoader.load("img/" + imageFile);
+            geom.computeVertexNormals();
+            let mat = new THREE.MeshPhongMaterial();
+            mat.map = texture;
+
+            let bump = textureLoader.load("img/" + bumpFile);
+            mat.bumpMap = bump;
+            mat.bumpScale = 0.6;            
+
+            let mesh = new THREE.Mesh(geom, mat);
+
+            return mesh;
+        }
+        
+        // add the output
+        document.body.appendChild(renderer.domElement);
+        render();
+      
+        
+        function createCubeMap() {
+            let path = "img/bkg/";
+            let urls = [
+              path + 'right.jpg', 
+              path + 'left.jpg',
+              path + 'top.jpg',
+              path + 'bot.jpg',
+              path + 'front.jpg',
+              path + 'back.jpg'
+            ];
+
+            let cubeTextureLoader = new THREE.CubeTextureLoader();
+            let textureCube = cubeTextureLoader.load(urls, THREE.CubeReflectionMapping);
+            return textureCube;
+        }
+
+        function render() {
+            orbit.update();
+            renderer.render(scene, camera);
+            sphere.rotation.y += 0.005;
+            requestAnimationFrame(render);
+        }
+      
+      
+    }
+  document.addEventListener('DOMContentLoaded', init());
+  
+  window.onload = function() {
+    const spinner = document.getElementById('loading');
+    spinner.classList.add('loaded');
+  }
+</script>
+</body>
+</html>

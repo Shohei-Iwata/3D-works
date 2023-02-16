@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<title>Basket Shooot!!</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0">
+	<link rel="icon" href="assets/textures/basketball-outline.svg" type="image/svg+xml">
+    <style>
+		* {
+			margin: 0;
+			-webkit-tap-highlight-color: rgba(0,0,0,0);
+		}
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+			position: relative;
+        }
+		#shot-button {
+			position: absolute;
+			right: 20vw;
+			bottom: 8rem;
+			width: 4rem;
+			height: 4rem;
+			border-radius: 50%;
+			background: #22bb22;
+			box-shadow: 0px 0px 5px 3px rgba(256,256,256,0.5);
+			display:flex;
+			justify-content: center;
+			align-items: center;
+			text-shadow: 1px 1px 1px green;
+			font-size: 1.2rem;
+			font-weight: 1000;
+			color: yellow;
+			animation-name: hoverBall;
+			animation-duration: 01s;
+			animation-timing-function: ease-in-out;
+			animation-iteration-count: infinite;
+			animation-direction: alternate;
+			transition: 0.5s;
+		}
+		#shot-button:hover {
+			cursor: pointer;
+		}
+		#shot-button:active {
+			transform: scale(1.3);
+			background: #55ee55;
+		}
+		@keyframes hoverBall {
+			0% {
+				box-shadow: 0px 0px 5px 3px rgba(256,256,256,0.5);
+				transform: translateY(2px);
+			}
+			100% {
+				box-shadow: 0px 0px 5px 4px rgba(256,256,256,0.5);
+			}
+		}
+		#button-area {
+			position: absolute;
+			top: 0;
+			right: 260px;
+			width: calc(100vw - 260px);
+			display: flex;
+			flex-direction: row-reverse;
+			flex-wrap: wrap;
+			padding-top: 15px;
+		}
+		#audio-button {
+			position: relative;
+			width: 35px;
+			height: 35px;
+			margin: 0 7px 14px;
+		}
+		#camera-button {
+			width: 35px;
+			height: 35px;
+			margin: 0 7px 14px;
+		}
+		#camera {
+			width: 100%;
+			height: auto;
+		}
+		.audio {
+			width: 100%;
+			height: auto;
+			position: absolute;
+		}
+		.visible {
+			opacity: 1;
+		}
+		.hidden {
+			opacity: 0;
+		}
+		
+    </style>
+	
+    <script type="text/javascript" src="../libs/three.js"></script>
+    <script type="text/javascript" src="../libs/physi.js"></script>
+    <script type="text/javascript" src="../libs/dat.gui.js"></script>	
+    <script type="text/javascript">
+	
+	'use strict';
+	
+	Physijs.scripts.worker = '../libs/physijs_worker.js';
+    Physijs.scripts.ammo = '../libs/ammo.js';
+		
+	let initScene, render, renderer, scene, ground, light, camera = [];
+	let goalParts = [], topFix = [], bottomFix =[];
+	let ballSwitch;
+	let wait = false;
+	let switchWait = false;
+	let colors = [0xffffff, 0xff0000, 0xffa500, 0xffff00, 0x008000, 0x00ffff, 0x0000ff, 0x800080];
+	let velocity = 1000;
+	let goalZ = 0;
+	let ballCount = 0;
+	let textureLoader = new THREE.TextureLoader();
+	let fixMaterial = new THREE.MeshBasicMaterial({transparent: true, opacity: 0},0,0);
+		
+		
+	initScene = function() 	{
+				
+		renderer = new THREE.WebGLRenderer({antinlias:true});
+		renderer.setSize(window.innerWidth, window.innerHeight);		
+		renderer.setClearColor(new THREE.Color(0x080808));		
+		document.getElementById('viewport').appendChild(renderer.domElement);		
+		
+		// scene
+		scene = new Physijs.Scene({reportSize: 10, fixedTimeStep: 1 / 60});		
+		scene.setGravity(new THREE.Vector3(0, -98, 0));
+		
+		// control
+		let controls = new function() {
+			this.power = 700;
+			this.distance = 200;
+			this.redraw = function () {
+				goalParts.forEach(function(e) {
+					scene.remove(e);					
+				});
+				goalParts = [];
+				createGoal();
+			};
+		}
+		
+		// shot button
+		let shotButton = document.getElementById("shot-button");
+		shotButton.addEventListener('click', function() {
+				if (wait) {
+					return;
+				} else {
+					wait = true;
+					constraint.disableLinearMotor();
+					constraint.enableLinearMotor(-1 * velocity, controls.power);
+					topFix.forEach(function(e) {
+						scene.remove(e);
+					});
+					topFix = [];
+					shotEffect();
+					setTimeout(() => {
+						bottomFix.forEach(function(e) {
+							scene.remove(e);
+						});
+						bottomFix = [];
+					}, 1000);
+					setTimeout(() => {
+						constraint.disableLinearMotor();
+						constraint.enableLinearMotor(velocity, controls.power);						
+						setTimeout(() => {
+							createFix();
+							addBall();						
+							wait = false;
+							shotEffectReturn();
+						}, 2000);
+					}, 900);
+				}				
+			}, false);
+		
+		// shot button effect
+		function shotEffect () {
+			shotButton.style.backgroundColor = "#888";
+			shotButton.style.color = "#ddd";
+			shotButton.style.fontSize = "0.9rem";
+			shotButton.style.textShadow = "1px 1px 1px #666";
+			shotButton.innerHTML = "reloading";
+		}
+		function shotEffectReturn () {
+			shotButton.style.backgroundColor = "#22bb22";
+			shotButton.style.color = "yellow";
+			shotButton.style.fontSize = "1.2rem";
+			shotButton.style.textShadow = "1px 1px 1px green";
+			shotButton.innerHTML = "shooot!";
+		}
+		
+		// gui
+		let gui = new dat.GUI();
+		gui.domElement.style.position = 'absolute';
+		gui.domElement.style.top = '0.5rem';
+		gui.domElement.style.right = '0';
+		gui.add(controls, "power", 450, 2000);
+		gui.add(controls, "distance", 180, 420).onChange(controls.redraw);
+		
+		
+		// camera
+		camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1,	1000);
+		camera.position.set(-200, 20, 45);
+		camera.lookAt(new THREE.Vector3(200, 95, -20));
+		scene.add(camera);
+
+		// Light
+		light = new THREE.DirectionalLight();
+        light.position.set(-70, 100, 50);
+        scene.add(light);
+		
+		// audio		
+		// bound sound
+		let listener = new THREE.AudioListener();
+		camera.add(listener);
+		let ballSound = new THREE.PositionalAudio(listener);	
+		ballSound.autoplay = false;
+		ballSound.load('assets/audio/bound.ogg');
+		ballSound.setLoop(false);
+		ballSound.setVolume(1);
+		ballSound.hasPlaybackControl = false;
+		ballSound.setRefDistance(205);
+		ballSound.setRolloffFactor(100);
+
+		// goal sound
+		let audioLoader2 = new THREE.AudioLoader();
+		camera.add(listener);
+		let goalSound = new THREE.Audio(listener);
+		audioLoader2.load('assets/audio/goal.ogg', function(buffer) {
+			goalSound.setBuffer(buffer);
+			goalSound.setLoop(false);
+			goalSound.setVolume(0.5);
+			goalSound.hasPlaybackControl = false;
+		});
+		
+		// audio button
+		let audioButton = document.getElementById("audio-button");
+		let audioOff = document.getElementById("off");
+		let audioOn = document.getElementById("on");
+		let audioCount = 0;
+		audioButton.addEventListener('click', function() {
+			ballSound.hasPlaybackControl = !ballSound.hasPlaybackControl;
+			goalSound.hasPlaybackControl = !goalSound.hasPlaybackControl;
+			function toVisible(e) {
+				e.classList.remove('hidden');
+				e.classList.add('visible');
+			}
+			function toHidden(e) {
+				e.classList.remove('visible');
+				e.classList.add('hidden');
+			}
+			if (audioCount % 2 == 0) {
+				toVisible(audioOn);
+				toHidden(audioOff);				
+			} else if (audioCount % 2 == 1) {
+				toVisible(audioOff);
+				toHidden(audioOn);				
+			}
+			audioCount ++;			
+		});
+		
+		// camera flip
+		let cameraButton = document.getElementById('camera-button');
+		let cameraCount = 0;
+		cameraButton.addEventListener('click', function() {
+			if (cameraCount % 2 == 0) {
+				camera.position.set(-200, 20, -45);
+				camera.lookAt(new THREE.Vector3(200, 95, 20));
+				shotButton.style.right = "calc(80vw - 4rem)";
+			} else if (cameraCount % 2 == 1) {
+				camera.position.set(-200, 20, 45);
+				camera.lookAt(new THREE.Vector3(200, 95, -20));
+				shotButton.style.right = "20vw";
+			}
+			cameraCount ++;			
+		})
+		
+		
+		// create objects
+		
+		// ground
+		createGround();		
+		// goal
+		createGoal();		
+		// Fix
+		createFix();		
+		// Ball
+		addBall();
+		
+		// render
+		requestAnimationFrame(render);
+		
+				
+		// create slider
+		let sliderMesh = new
+			Physijs.SphereMesh(new THREE.SphereGeometry(10,20), Physijs.createMaterial(
+				new THREE.MeshPhongMaterial({color: 0x44ff44}), 1, 0.1));
+		sliderMesh.position.z = 0;
+		sliderMesh.position.x = -15;
+		sliderMesh.position.y = 8;
+		sliderMesh.rotation.z = 1.35 * Math.PI;
+		scene.add(sliderMesh);
+		
+		// slider constraint
+		let constraint = new Physijs.SliderConstraint(
+			sliderMesh, new THREE.Vector3(0,0,0),
+			new THREE.Vector3(0,0,0)
+		);		
+		scene.addConstraint(constraint);
+		constraint.setLimits(-35,10,0,0);
+		constraint.setRestitution(0.1,0.1);
+		constraint.enableAngularMotor(velocity, controls.power);
+		
+
+	
+		// create ground
+		function createGround() {
+			let textureLoader = new THREE.TextureLoader();
+			let groundMaterial = Physijs.createMaterial(
+				new THREE.MeshPhongMaterial({map: textureLoader.load('assets/textures/floor.jpg')}),
+				1, 1);		
+			// ground
+			let ground = new Physijs.BoxMesh(new THREE.BoxGeometry(460, 1, 100), groundMaterial, 0);
+			ground.position.x = 240;
+			ground.position.y = -1;
+			
+			scene.add(ground);
+			
+			// stopper
+			let stopper = new Physijs.ConeMesh(new THREE.CylinderGeometry(0, 6, 20, 10, 1, false, Math.PI, Math.PI * 2), Physijs.createMaterial(new THREE.MeshBasicMaterial({transparent: true, opacity: 0, side: "double"}),0,0),0);
+				stopper.position.x = 18;
+				stopper.position.y = -1;
+				stopper.position.z = 1;
+				stopper.rotation.z = Math.PI * -0.5;
+				scene.add(stopper);
+			
+			// remover
+			let remover = new Physijs.BoxMesh(new THREE.BoxGeometry(1200, 1, 300), Physijs.createMaterial(new THREE.MeshBasicMaterial({transparent: true, opacity: 0}),0,0),0);
+			remover.position.x = 500;
+			remover.position.y = -100;
+			remover.position.z = 0;
+			remover.addEventListener('collision', function(object) {
+					scene.remove(object);
+			});
+			scene.add(remover);
+		}
+
+		// create goal
+		function createGoal() {	
+			createBoard();
+			createRing();
+			createBlock();
+			createPost();
+			createNet();
+			createSwitch();
+			createCorn()
+
+			// goal board
+			function createBoard() {
+				let boardMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({map:textureLoader.load('assets/textures/goalboard.gif')}),0,0.5);
+				let goalBoard = new Physijs.BoxMesh(new THREE.BoxGeometry(1, 40, 72), boardMaterial,0);
+				goalBoard.position.x = controls.distance;
+				goalBoard.position.y = controls.distance * 0.625;
+				goalBoard.position.z = goalZ;
+				goalParts.push(goalBoard);
+				scene.add(goalBoard);
+			}
+
+			// ring
+			function createRing() {
+				let ringGeometry = new THREE.CylinderGeometry(0.8,0.8,3.1);
+				let ringMaterial = new Physijs.createMaterial(new THREE.MeshLambertMaterial({color: 0xff3333}),0,0.3);
+				for(let i = 0;i < 16;i++) {
+					let ring = new Physijs.CylinderMesh(ringGeometry, ringMaterial, 0);
+					ring.rotation.x = 0.5 * Math.PI;
+					ring.position.y = controls.distance * 0.625 - 17;
+					ring.position.x = controls.distance - 10 + 7 * Math.cos(Math.PI * 0.125 * i);
+					ring.position.z = goalZ +  7 * Math.sin(Math.PI * 0.125 * i);
+					ring.rotation.z = Math.PI * 0.125 * i;
+					goalParts.push(ring);
+					scene.add(ring);
+				}		
+			}
+			// block
+			function createBlock() {
+				let block = new Physijs.BoxMesh(new THREE.BoxGeometry(1,1,8), Physijs.createMaterial(new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0}),0,0),0);
+				block.position.x = controls.distance - 17;
+				block.position.y = controls.distance * 0.625 - 23;
+				goalParts.push(block);
+				scene.add(block);		
+			}
+			// net
+			function createNet() {
+				let netGeometry = new THREE.CylinderGeometry(7, 4, 12, 8, 3, true);
+				let netMaterial = new THREE.MeshBasicMaterial();
+				netMaterial.color = new THREE.Color(0xffffff);
+				netMaterial.wireframe = true;
+				netMaterial.openEnded = true;
+				netMaterial.transparent = true;
+				netMaterial.opacity = 0.2;
+				netMaterial.side = "double";			
+				let net = new THREE.Mesh(netGeometry, netMaterial);
+				net.position.x = controls.distance - 10;
+				net.position.y = controls.distance * 0.625 - 24;
+				goalParts.push(net);
+				scene.add(net);
+			}
+			// switch
+			function createSwitch() {
+				ballSwitch = new Physijs.BoxMesh(new THREE.BoxGeometry(0.5,0.5,0.5), Physijs.createMaterial(new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0}),0,0),0);
+				ballSwitch.position.y = controls.distance * 0.625 - 20;
+				ballSwitch.position.x = controls.distance - 6;
+				goalParts.push(ballSwitch);
+				scene.add(ballSwitch);	
+
+				ballSwitch.addEventListener('collision', function() {
+					goalEffect();
+				});
+				// goal effect
+				function goalEffect() {
+					if (switchWait) { return; } 
+					else {
+						switchWait = true;
+
+							for (let i = 0; i < 4 + ballCount * 2; i++) {
+								let sphereColor = colors[Math.floor(Math.random() * colors.length)];
+								let sphere = new Physijs.SphereMesh(new THREE.SphereGeometry(2, 5), Physijs.createMaterial(new THREE.MeshLambertMaterial({color: sphereColor}),1,0.5));
+								sphere.position.y = controls.distance * 0.625 - 24,
+								sphere.position.x = controls.distance - 10 - Math.random() * 10 + 5;
+								sphere.position.z = Math.random() * 10 - 5;
+								scene.add(sphere);
+							}
+							ballCount ++;
+						 if (ballCount > 4) {
+							for (let i = 0; i < colors.length + 1; i++) {
+								let sphere = new Physijs.SphereMesh(new THREE.SphereGeometry(2, 5), Physijs.createMaterial(new THREE.MeshLambertMaterial({color: colors[i]}),1,0.8));
+								sphere.position.y = controls.distance * 0.625 - 50 + 1 * i,
+								sphere.position.x = controls.distance -20 -0.1 * i,
+								scene.add(sphere);
+								ballCount = 0;
+							}
+						}
+						// sound
+						goalSound.connect();
+						goalSound.play();
+						setTimeout(() => goalSound.disconnect, 100)
+						setTimeout(() => switchWait = false, 2500);
+					}
+				}
+			}
+			// post
+			function createPost () {
+				let post = new Physijs.ConeMesh(new THREE.CylinderGeometry(2.5, 2.5, controls.distance * 0.625), Physijs.createMaterial(new THREE.MeshPhongMaterial({color: 0xaaaaaa, }),0,0.1),0);
+				post.position.x = controls.distance + 5;
+				post.position.y = controls.distance * 0.625 / 2;
+				goalParts.push(post);
+				scene.add(post);
+			}
+			// corn
+			function createCorn () {
+				let corn = new Physijs.ConeMesh(new THREE.CylinderGeometry(0, 8, 23, 4, 1, true, 0, Math.PI), Physijs.createMaterial(new THREE.MeshBasicMaterial({transparent: true, opacity: 0}),0,0.5),0);
+				corn.position.x = controls.distance - 7;
+				corn.rotation.z = Math.PI * 0.5;
+				goalParts.push(corn);
+				scene.add(corn);
+			}
+		}
+
+		// Fix
+		function createFix () {
+			for (let j = 0; j < 4; j++) {
+				let fixGeometry = new THREE.BoxGeometry(10, 1, 130);
+				let fix = new Physijs.BoxMesh(fixGeometry, fixMaterial, 0);
+				fix.rotation.x = Math.PI * 0.5;
+				fix.position.y = 66;
+				fix.position.x = 0 - 5.5 * Math.sin(Math.PI * 0.5 * j);
+				fix.position.z = 0 + 5.5 * Math.cos(Math.PI * 0.5 * j);
+				fix.rotation.z = Math.PI * 0.5 * j;
+				topFix.push(fix);
+				scene.add(fix);
+			}
+			
+			// stand box
+			for (let j = 0; j < 4; j++) {
+				let fixGeometry = new THREE.BoxGeometry(10, 1, 10);
+				let fix = new Physijs.BoxMesh(fixGeometry, fixMaterial, 0);
+				fix.rotation.x = Math.PI * 0.5;
+				fix.position.y = -5;
+				fix.position.x = 0 - 5.5 * Math.sin(Math.PI * 0.5 * j);
+				fix.position.z = 0 + 5.5 * Math.cos(Math.PI * 0.5 * j);
+				fix.rotation.z = Math.PI * 0.5 * j;
+				bottomFix.push(fix);
+				scene.add(fix);
+			}
+
+			// stand
+			let stand = new Physijs.BoxMesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), Physijs.createMaterial(new THREE.MeshBasicMaterial({transparent: true, opacity: 0}),0,0),0);
+				stand.position.y = -10;
+				stand.position.x = 0;
+				stand.position.z = 0;
+				bottomFix.push(stand);
+				scene.add(stand);
+
+			// stand ball
+			let standball = new Physijs.SphereMesh(
+				new THREE.SphereGeometry(5,10,10),
+				Physijs.createMaterial(
+					new THREE.MeshBasicMaterial({
+						opacity: 0,
+						transparent: true
+					}), 0, 0.9)
+			);
+			standball.position.set(0, -5, 0);
+			bottomFix.push(standball);
+			scene.add(standball);
+		}
+		
+		// add ball
+		function addBall() {
+			let texture = textureLoader.load('assets/textures/ball.jpg')
+			let ball = new Physijs.SphereMesh(
+			new THREE.SphereGeometry(5,10,10),
+			Physijs.createMaterial(
+				new THREE.MeshPhongMaterial({map: texture
+				}), 1, 1)
+			);
+			ball.position.set(0, 60, 0);
+			ball.rotation.x = Math.PI * 0.5;
+			ball.rotation.z = Math.PI * 0.25;
+			// bound sound
+			ball.addEventListener('collision', function() {
+				ball.add(ballSound);
+				ballSound.connect();
+				ballSound.play();
+				setTimeout(() => ballSound.disconnect, 100)
+			});			
+			scene.add(ball);
+		}
+		
+		// render
+		function render() {
+			requestAnimationFrame(render);
+			renderer.render(scene, camera);
+			scene.simulate();
+		}
+	};
+		
+	window.onload = initScene;
+
+    </script>
+</head>
+
+<body>
+<div id="viewport"></div>
+<div id="shot-button">shooot!</div>
+<div id="button-area">
+	<div id="audio-button">
+		<img id="off" class="audio visible" src="assets/textures/volume_off.svg">
+		<img id="on" class="audio hidden" src="assets/textures/volume_on.svg">
+	</div>
+	<div id="camera-button">
+		<img id="camera" src="assets/textures/flip_camera.svg">
+	</div>
+</div>
+</body>
+
+</html>
